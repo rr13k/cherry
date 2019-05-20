@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+</head>
+<!-- <script src="../assets/bootstrap.min.js"  crossorigin="anonymous"></script> -->
+<nav >
+    <div >
+      <ul>
+        <li><a href="#"><label for="">百度</label></a></li>
+        <li><a href="#"><label for="">百度</label></a></li>
+        <li><a href="#"><label for="">百度</label></a></li>
+      </ul>
+    </div>
+  </nav>
+<webview id="foo" plugins    src="http://www.jiniannet.com/page/allcolor"
+  style="display:inline-flex; width:100%; height:980px" ></webview>
+<button onclick="Tclick()" id='btn'>test</button>
+<button onclick="run()" id='btn'>执行</button>
+</head>
+<!-- preload="./driverInit" -->
+<body>
+  <h3>这是测试页面</h3>
+</body>
+</html>
+<script>
+  var ipc = require('electron').ipcRenderer;
+  var fs = require("fs");
+  var farst = true
+
+  const remote = require('electron').remote;
+
+
+
+  document.onmousemove = (event) => { console.log(event) }
+  setInterval(function(){
+    remote.getCurrentWebContents().sendInputEvent({type:'mouseDown', x:303, y: 549, button:'left', clickCount: 1});
+    remote.getCurrentWebContents().sendInputEvent({type:  'mouseUp', x:303, y: 549, button:'left', clickCount: 1});
+    console.dir(123)
+
+          //  nowWebview.sendInputEvent({type:'mouseDown', x:303, y: 549, button:'left', clickCount: 1});
+          //       nowWebview.sendInputEvent({type:  'mouseUp', x:303, y: 549, button:'left', clickCount: 1});
+
+
+  },1000)
+
+  
+  // const { dialog } = require('electron').remote
+  // window.dialog = dialog
+ 
+  // var path = require("path")
+  // var optfile = require('../model/test');  //可直接调用
+  // console.dir(optfile)
+  var initJs = fs.readFileSync(__dirname + '\\driverInit.js','utf-8');
+  const webview = document.querySelector('webview')
+
+  window.cc = webview
+  // const devtoolsView = document.getElementById('devtools')
+  const {session} = require('electron').remote
+  const { webContents } = require('electron').remote
+  const {BrowserView} = require('electron').remote
+
+
+
+
+
+
+const filter = {
+  urls: ['https://*.github.com/*', '*://electron.github.io']
+}
+
+session.defaultSession.webRequest.onBeforeSendHeaders( (details, callback) => {
+  details.requestHeaders['Cookie'] = 'MyAgent'
+  callback({cancel: false, requestHeaders: details.requestHeaders})
+})
+//   session.defaultSession.cookies.get({name: 'JSESSIONID'}, (error, cookies) => {
+//   console.log(error, cookies)
+//   cookies[0].value = 1313
+//    window.ss = session
+// })
+
+//   const cookie = {url: 'http://www.ruidaedu.com', name: 'JSESSIONID2', value: 'dummy',path:'/core',httpOnly:true}
+//   session.defaultSession.cookies.set(cookie, (error) => {
+//     if (error) console.error(error)
+//   })
+  
+  window.mycontents = webContents
+
+  // var driverList = []
+  // driver.url = 
+  webview.addEventListener('dom-ready', () => {
+    window.dd = webview
+    webview.getWebContents().on('found-in-page', (event, result) => {
+    if (result.finalUpdate) webview.stopFindInPage('keepSelection')
+    console.dir(50)
+  })
+
+  // setInterval(function(){
+    
+  //   console.dir(webview.isLoading())
+  // },500)
+
+if(farst){
+  webview.addEventListener('did-frame-finish-load',()=>{
+    console.dir('你好啊')
+  })
+farst = false
+}
+
+
+    // webview.loadUrl()
+    webview.openDevTools()
+    // var ct = webview.getWebContents()
+    // var driverList = []
+    // window.ct = ct
+    // window.driver = driverList
+
+    console.dir(49)
+    // ct.webContents.on('new-window', (e,url,frameName,disposition,options) => {
+    //     console.dir('新的窗口45')
+    //     const protocol = require('url').parse(url).protocol
+    //     if (protocol === 'http:' || protocol === 'https:') {
+    //       let newWindow =  window.open(url)
+    //       console.dir(newWindow)
+    //       newWindow.eval(initJs)
+    //       window.newWindow = newWindow
+    //     }
+    //   });
+
+
+    // driverList.push(ct)
+    // webview.addEventListener('new-window', (e) => {
+    //   const protocol = require('url').parse(e.url).protocol
+    //   if (protocol === 'http:' || protocol === 'https:') {
+    //     console.dir(e)
+    //     let newWindow =  window.open(e.url)
+    //     console.dir(newWindow)
+    //     newWindow.eval(initJs)
+    //     window.newWindow = newWindow
+    //   }
+    // });
+
+
+    // var ct = webview.getWebContents()
+  })
+
+function run(){
+  cc.executeJavaScript(`$('#kw').val(123)`)
+
+
+}
+
+  function Tclick() {
+    ipc.send('test1')
+    let body = document.getElementsByTagName('body')[0]
+        let div = document.createElement('div')
+        // ss = `file://${__dirname}\\driverInit.js`
+        div.innerHTML = `
+                        <input type="radio" name="tab-radio" class="tab-radio" id="tab" checked>
+                        <webview id="id1"   plugins disablewebsecurity  src="https://www.baidu.com/"
+                         >
+                        </webview>`
+        body.appendChild(div)
+        var webview = document.getElementById(`id1`)
+        window.cc = webview
+        // cc.openDevTools()
+    
+    // dd.getWebContents()
+    // dd.getWebContents().closeDevTools()
+
+
+    // const {BrowserWindow}= require('electron').remote
+
+    // var win =  new BrowserWindow({width: 800, height: 600,tabbingIdentifier:'test'})
+    // win.loadURL('https://github.com')
+
+
+    // var aa =  new BrowserWindow({width: 800, height: 600,tabbingIdentifier:'test'})
+    // aa.loadURL('https://github.com')
+    
+
+    // win.addTabbedWindow(aa)
+
+    // ct.insertText('你好')
+  }
+
+  // var lowdb = require('./lowdb.js')
+  // var mydb = db.getdb
+  // var casaTableId = null
+  // var cmdList = []
+  // var liveUrl = ''
+
+</script>
+
+<style>
+
+  ul>li{
+    list-style: none;
+    display: inline-block;
+    width: 8vw;
+    min-width: 60px;
+    height: 100%;
+    background-color: rgb(208, 208, 208);
+  }
+
+  li>a{
+    margin: 5px 0;
+    display: block;
+    border-right: solid slategray 1px;
+    text-decoration: none;
+  }
+
+  li:hover{
+    background-color: #b7d7ec;
+  }
+
+  ul{
+    padding: 0;
+    margin: 0;
+    font-size:0;
+    height: 23px;
+  }
+
+  body{
+    margin: 0;
+  }
+
+  li>a>label{
+    min-width: 40px;
+    font-size:12px;
+    color: #585858;
+    padding-left: 5px;
+  }
+</style>

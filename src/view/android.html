@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>android</title>
+  <link rel="stylesheet" href="../assets/icomoon/style.css">
+  <link rel="stylesheet" href="../assets/bootstrap.min.css" crossorigin="anonymous">
+</head>
+
+<body>
+  <nav>
+    <ul class="toolsUl ">
+      <li onclick="backHome()" title="返回">
+        <span class="icon-home" style="color: rgb(22, 109, 223) !important;font-size: 18px;line-height: 30px;font-weight: 600"></span>
+      </li>
+      <li title="录制" onclick="live()">
+        <label for="liveWin">
+          <span class="icon-dkw_" style="color: rgb(231, 85, 85) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+        </label>
+      </li>
+      <li onclick="addCase()" title="图表">
+        <span class="icon-stats-bars" style="color: rgb(59, 230, 130) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+      </li>
+      <li onclick="F5()" title="刷新">
+        <span class="icon-spinner11" style="color: rgb(56, 56, 56) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+      </li>
+      <li onclick="allRun(true)" title="批量运行">
+        <span class="icon-play3" style="color: rgb(10, 152, 29) !important;font-size: 22px;line-height: 30px;font-weight: 600"></span>
+      </li>
+      <li onclick="RunStop()" title="设置">
+        <span class="icon-cog" style="color: rgb(59, 59, 59) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+      </li>
+    </ul>
+  </nav>
+  <div class="dervice col-xs-5 clear">
+    <div class="cover"></div>
+    <img class="logo" width="300px" height="500px" src="../assets/timg.jpg" alt"请连接手机，并开启调试模式!">
+  </div>
+
+  <div class="col-xs-7 clear" id="caseTable">
+    暂无记录!
+  </div>
+
+</body>
+
+</html>
+
+<script>
+  const ipc = require('electron').ipcRenderer;
+  const {net} = require('electron').remote
+  const cp = require('child_process');
+  const fs = require('fs');
+  const lowdb = require('lowdb')
+  var FileSync = require('lowdb/adapters/FileSync');  // 有多种适配器可选择
+  var adapter = new FileSync('android.json'); // 申明一个适配器
+  var _lowdb = lowdb(adapter)  // 以上初始化数据库
+  var _stop = false
+  _lowdb.defaults({ casesConts: 0, cases: [] }).write(); //初始化数据表格
+  window.cmdStore = []  //储存的单条用例的内容
+
+  ipc.on('changeCaseSaveok', (event, arg) => {
+    _lowdb.get('cases')
+      .find({ id: arg.id })
+      .assign({ cmdStore: arg.cmdStore })
+      .assign({ name: arg.name })
+      .write()
+    CaseTable()
+  })
+
+
+  console.dir(net)
+
+  function RunStop(){
+    _stop = true
+  }
+
+  function NewCaseId() {  //自增id
+    return _lowdb.update('casesConts', n => n + 1).write().casesConts
+  }
+  function backHome() {
+    ipc.send('backHome')
+  }
+
+  function getCaseData() {
+    return _lowdb.get('cases')
+      .value()
+  }
+
+  function getCaseById(id) {
+    if (typeof id == 'string') {
+      id = parseInt(id)
+    }
+    return _lowdb.get('cases')
+      .find({ id: id })
+      .value()
+
+  }
+
+  function deleteCase(e) {
+    let lineData = e.parentNode.parentNode.parentNode
+    let id = lineData.children[0].innerText
+    if (typeof id == 'string') {
+      id = parseInt(id)
+    }
+    _lowdb.get('cases')
+      .remove({ id: id })
+      .write()
+    CaseTable()  //刷新表格
+  }
+
+  function caseByid(id) {
+    if (typeof id == 'string') {
+      id = parseInt(id)
+    }
+    return _lowdb.get('cases')
+      .find({ id: id })
+      .value()
+  }
+
+  function cmdGO(e) {
+    _stop = false
+    let lineData = e.parentNode.parentNode.parentNode
+    let id = lineData.children[0].innerText
+    data = caseByid(id)
+    cmdexec(data.cmdStore)
+  }
+
+  function cmdexec(cmd, index = 0) {
+    if(_stop == true){
+      console.dir('停止运行!')
+      return false
+    }
+    if (index < cmd.length) {
+      var _str
+      switch (cmd[index].type) {
+        case 'click':
+          _str = `adb shell input tap ${cmd[index].x} ${cmd[index].y}`
+          break
+        case 'slide':
+          _str = `adb shell input swipe  ${cmd[index].x} ${cmd[index].y}  ${cmd[index]._x}  ${cmd[index]._y}`
+          break
+      }
+      cp.exec(_str, function (error, stdout, stderr) {
+        if (error) {
+          console.error('error: ' + error);
+          return;
+        }
+      });
+      setTimeout(() => {
+        cmdexec(cmd, index + 1)
+      }, 1500);
+    }
+  }
+
+  function editor(e) {
+    let lineData = e.parentNode.parentNode.parentNode
+    let id = lineData.children[0].innerText
+    let data = getCaseById(id)
+    let _data = Object.assign({}, data);
+    _data.html = "changeCase.html"
+    _data.test = true
+    ipc.send('changepage', _data)
+  }
+
+  CaseTable()
+
+  function CaseTable() {
+    let data = getCaseData()
+    winCaseList = data
+    let dataBox = document.getElementById('caseTable')
+    dataBox.innerHTML = `<table border="1" id="casesTable" cellpadding="10" width="100%" class="biaoge">
+      <tr><th width="8%">id</th><th>用例名称</th><th>成功率</th><th>操作</th></tr></table>`
+    let casesTable = document.getElementById('casesTable')
+    var _div = document.createElement('tbody')
+    var _str = ''
+    for (var i = 0; i < data.length; i++) {
+      _str = `<tr> 
+  <td>${data[i].id}</td>
+  <td>${data[i].name}</td>
+  <td>-</td>
+  <td>
+    <ul class="btnBox">
+      <li class="icoBtn" onclick="cmdGO(this)">
+      <a title="运行" style="text-decoration: none;">
+          <span class="icon-run" style="color: rgb(78, 255, 167) !important;font-size: 20px;line-height: 30px;"></span>
+        </a>
+      </li>
+      <li class="icoBtn" onclick="editor(this)">
+          <a title="编辑" style="text-decoration: none;" >
+              <span class="icon-file-text" style="color: rgb(215, 247, 235) !important;font-size: 15px;line-height: 30px;"></span>
+        </a>
+      </li>
+      <li class="icoBtn" onclick="deleteCase(this)">
+          <a title="删除" style="text-decoration: none;">
+              <span class="icon-cross" style="color: rgb(253, 90, 90) !important;font-size: 15px;line-height: 30px;"></span>
+        </a>
+      </li>
+    </ul>
+  </td>
+</tr>
+`
+      _div.innerHTML = _str
+      casesTable.children[0].appendChild(_div.children[0])
+    }
+  }
+
+  function addCase() {  //新加用例
+    let obj = new Object
+    obj.cmdStore = cmdStore
+    obj.id = this.NewCaseId()
+    obj.name = 'android 用例'
+    let addStr = obj
+    _lowdb.get('cases')
+      .push(addStr)
+      .write()
+    CaseTable()
+  }
+
+  deleteCmd()
+  function deleteCmd() {   //删除遗留的命令
+    var path = ".\\cmd.text";
+    fs.unlink(path, function (msg) {
+      console.warn(msg);
+    });
+  }
+
+  function live() {  //记录指令
+    cmdStore = []
+    console.dir('开始录制')
+    var _cmd = "adb  shell getevent -l > ./cmd.text"
+    const _command = cp.exec(_cmd, function (error, stdout, stderr) {
+      if (error) {
+        console.error('error: ' + error);
+        return;
+      }
+    });
+  }
+
+  setInterval(function () {
+    parseCmd()
+  }, 300)
+
+
+  function parseCmd() {  //解析命令,并进行存储。
+    var path = ".\\cmd.text";
+    var doc = fs.readFileSync(path, "utf-8")
+    var re = /\/dev\/input\/event.{45}/g
+    var res = doc.match(re)   // res 中存储了所有的指令
+    if (res == null) {
+      return false
+    }
+    var list = []  // list 存指令转换后的具体命令
+    for (var i in res) {
+      if (res[i].indexOf("BTN_TOUCH            DOWN") != -1) {
+        var event = new Object();
+        // 不同手机返回的形式不同，为了兼容先这样写
+        var compatibility = i < 3 ? true : false
+        if (compatibility) {
+          event.start = res[i]
+          event.start_ID = i
+        } else {
+          event.start = res[i - 5]
+          event.start_ID = i - 5
+        }
+      } else if (res[i].indexOf("BTN_TOUCH            UP") != -1) {
+        event.end = res[i]
+        event.end_ID = i
+        list.push(event)
+      }
+    }
+    // console.dir(list)  // 根据变更执行
+    if (!this.TB_state) {
+      this.jilu_list = list.length
+      this.TB_state = true
+      return false
+    }
+    if (this.jilu_list != list.length) {
+      // 记录本次变更，下次不在执行
+      this.jilu_list = list.length
+      // 根据列表执行命令
+      // for(var i in list){
+      // 只执行最后一个
+      var i = list.length - 1
+      var _event = new Object();
+      var boundsX = new Array();
+      var boundsY = new Array();
+      for (var j = list[i].start_ID; j < list[i].end_ID; j++) {
+        // ABS_MT_PRESSURE 记录手指压力，ABS_MT_TRACKING_ID 用来记录多点触碰手势操作的。SYN_MT_REPORT  上报操作。
+        // if(res[j].indexOf("ABS_MT_PRESSURE") || res[j].indexOf("ABS_MT_TRACKING_ID")||res[j].indexOf("SYN_MT_REPORT")  != -1){
+        //   break
+        // }else 
+        if (res[j].indexOf("ABS_MT_POSITION_X") != -1) {
+          var re = /.*(.{8})/
+          var int16 = res[j].match(re)[1]
+          boundsX.push(parseInt(int16, 16))
+          _event.x = boundsX
+        } else if (res[j].indexOf("ABS_MT_POSITION_Y") != -1) {
+          var re = /.*(.{8})/
+          var int16 = res[j].match(re)[1]
+          boundsY.push(parseInt(int16, 16))
+          _event.y = boundsY
+        }
+      }
+      var _x = Array.from(new Set(_event.x))
+      var _y = Array.from(new Set(_event.y))
+      if (_x.length < 3 && _y.length < 3) {
+        //  获取到xml结构
+        var _str = "adb shell input tap  %s  %s";
+        var list = [_x[0], _y[0]]  // 取到了点击的x,y
+        let cmd = new Object
+        cmd.type = 'click'
+        cmd.x = _x[0]; cmd.y = _y[0]
+        cmdStore.push(cmd)
+        console.log("这是个点击事件")
+      } else {
+        let directionX, directionY
+        directionX = Math.abs(_event.x[0] - _event.x[_event.x.length - 1])
+        directionY = Math.abs(_event.y[0] - _event.y[_event.y.length - 1])
+        if (directionX < 25 && directionY < 25) {
+          console.log("你是个顽皮的点击事件")
+          console.dir()
+        } else {
+          // 所有的滑动命令都在这里
+          console.log("所有的滑动命令")
+          var _str = "adb shell input swipe  %s  %s  %s  %s";
+          let list = [_x[0], _y[0], _x.pop(), _y.pop()]  //list 存储滑动的四个参数
+          let cmd = new Object
+          cmd.type = 'slide'
+          cmd.x = list[0]; cmd.y = list[1];
+          cmd._x = list[2]; cmd._y = list[3];
+          console.dir(cmd)
+          cmdStore.push(cmd)
+          // this.TB_switch(list)
+          // list = this.TB_switch(list)
+          // this.TB_run_dervices(_str,list)
+        }
+      }
+    }
+    // }
+  }
+</script>
+
+
+<style>
+  .btnBox {
+    font-size: 0;
+  }
+
+  .clear {
+    margin: 0;
+    padding: 0;
+  }
+
+  .toolsUl>li:hover {
+    background-color: #ebebeb77;
+  }
+
+  .toolsUl>li {
+    user-select: none;
+    background-color: white;
+    display: inline-block;
+    /* padding: 5px; */
+    margin: 5px 0;
+    width: 30px;
+    height: 30px;
+    /* margin-left: -10px; */
+    text-align: center;
+    vertical-align: text-top;
+    border-radius: 10%;
+  }
+
+  ul,
+  li {
+    list-style: none;
+  }
+
+  ul {
+    padding: 0;
+    margin: 0;
+  }
+
+  .icoBtn {
+    display: inline-block;
+    padding: 0 5px;
+    font-size: 0;
+  }
+
+  .icoBtn:hover {
+    animation: bounce 1s;
+  }
+
+  @keyframes bounce {
+
+    from,
+    20%,
+    53%,
+    80%,
+    to {
+      animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+      transform: translate3d(0, 0, 0);
+    }
+
+    40%,
+    43% {
+      animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+      transform: translate3d(0, -10px, 0);
+    }
+
+    70% {
+      animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+      transform: translate3d(0, -3px, 0);
+    }
+
+    90% {
+      transform: translate3d(0, -1px, 0);
+    }
+  }
+
+  td {
+    color: black;
+    border: none;
+    border-bottom: rgba(233, 233, 233, 0.521) solid 1px;
+    padding: 5px 0;
+  }
+
+  table {
+    background-color: white;
+    text-align: center;
+    border: rgba(88, 88, 88, 0.521) solid 1px;
+    user-select: none;
+  }
+
+  th {
+    text-align: center;
+    color: black;
+    font-size: 14px;
+    font-weight: 100;
+    border: none;
+    padding: 5px 0;
+  }
+</style>

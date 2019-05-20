@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>cherry</title>
+    <base href="./">
+  </head>
+  <body>
+    <button  data-jy-pc="PC.html" onclick="changeView(this)">PC</button>
+    <button  data-jy-pc="test.html" onclick="changeView(this)">test</button>
+    <button  data-jy-pc="android.html" onclick="changeView(this)">android</button>
+    <br/>
+  </body>
+</html>
+<script>
+const {ipcRenderer} = require('electron')
+
+function changeView(e){
+  let _path = './src/view/' + e.dataset.jyPc
+  ipcRenderer.send('viewChange',_path)
+}
+</script>

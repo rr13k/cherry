@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>用例修改</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="help">
+        <h3>
+            参数说明:
+        </h3>
+        <pre>
+            {
+               <span >"label"</span> : <span class="_jsonValue">"new case"</span>,  <span class="zhushi">// case  name</span> 
+               <span>"caseCMD"</span> : [
+                    {
+                        <span>"dom"</span> : <span class="_jsonValue">"xpath"</span>,   <span class="zhushi">//dom of xpath</span> 
+                        <span>"type"</span> : <span class="_jsonValue">"js"</span> ,    <span class="zhushi">//py or js</span>
+                        <span>"value"</span> : <span class="_jsonValue">"null"</span>,    <span class="zhushi">//input of data</span> 
+                        <span>"describe"</span> : <span class="_jsonValue">"click"</span>,  <span class="zhushi">// "click","inputToData",</span> 
+                        <span>"iframe"</span> : <span class="_jsonValue">"null"</span>   <span class="zhushi">// page of iframe list  is number</span> 
+                    },
+                ],
+                <span>"testURL"</span> : <span class="_jsonValue">"http://www.baidu.com"</span>,     <span class="zhushi">// test url</span> 
+                <span>"project"</span> : <span class="_jsonValue">2</span>,   <span class="zhushi">// test project ID</span> 
+            }
+        </pre>
+    </div>
+
+    <div class="box">
+        <div  id="box" contenteditable="true"></div>
+    </div>
+    <div>
+        <button  onclick="geshi()">格式化</button>
+        <button  onclick="updateData()">修改</button>
+        <button>取消</button>
+
+    </div>
+    
+</body>
+
+</html>
+<script>
+    var ipc = require('electron').ipcRenderer;
+    const zifu = [",",":","\\"]  //特殊字符
+    const jiefu = ["{","}","[","]"] //界符
+    var forward = -1;
+    var tokenBuf = []
+    var j = 0
+    var state  //记录当前状态
+    var start  //记录开始位置
+    var reStr= /^[A-Za-z]/;  //判断字母
+    var reNum = /^[0-9]+.?[0-9]*$/;  //判断数字
+    var okStr = ""
+    var myStr = ""  //存放初始字符串
+    var _value = false
+    
+    
+
+
+    function _init(){
+        okStr = ""
+        myStr = "" 
+        forward = -1;
+        tokenBuf = []
+    }
+
+    //标识符1、常数2，保留字3，运算符4，界符5
+     function wordxRead(_str){
+        myStr = _str
+        while(true){
+            nexttoken()
+            if (forward >= _str.length -1){
+                break
+            }
+        }
+        var _n = 0;
+        var _maohao;
+        for(var i=0;i<tokenBuf.length;i++){
+            switch(tokenBuf[i].syn){
+                case 1:
+                    if(tokenBuf[i].value ==":"){
+                        _maohao = i
+                    }
+                    if(tokenBuf[i].value ==","){
+                        okStr = okStr +  `<span >`+tokenBuf[i].value+`</span><br/>`
+                    }else{
+                        okStr = okStr +  `<span >`+tokenBuf[i].value+`</span>`
+                    }
+                    break
+                case 2:
+                    okStr = okStr +  `<span style="color: burlywood;">` + space(_n)  + ``  +tokenBuf[i].value+`</span>`
+                    break
+                case 3:
+                    okStr = okStr +  `<span style="color:rgb(58, 132, 232);">&nbsp;`+tokenBuf[i].value+`</span>`
+                    break
+                case 5:
+                    if(tokenBuf[i].value == "["){
+                        okStr = okStr +  `<span>&nbsp;`+tokenBuf[i].value+`</span><br/>`
+                        _n++
+                    }else if(tokenBuf[i].value == "]"){
+                        okStr = okStr +  `<br/><span>`+tokenBuf[i].value+`</span>`
+                        _n--
+                    }
+                    if(tokenBuf[i].value == "}"){
+                        okStr = okStr +  `<br/><span>` + space(_n)  + ``+tokenBuf[i].value+`</span>`
+                        _n--
+                    }else if(tokenBuf[i].value == "{"){
+                        if(_maohao == i-1){
+                            okStr = okStr +  `<span>`+tokenBuf[i].value+`</span><br/>`
+                        }else{
+                            okStr = okStr +  `<span>` + space(_n)  + ``+tokenBuf[i].value+`</span><br/>`
+                        }
+                        _n++
+                    }
+                    break
+            }
+        }
+    }
+
+    function geshi(){
+        console.dir("格式化")
+        var _cade = document.getElementById("box")
+        var _newStr = _cade.innerText
+        _newStr =  _newStr.replace(/\s+/g,"");  
+        console.dir( JSON.parse(_newStr) )
+        formatter(_newStr)
+        console.dir(tokenBuf)
+        console.dir(myStr)
+    }
+
+    function space(_num){
+        _num = _num * 4
+        let _str = ""
+        for(var i=0;i<_num;i++){
+            _str = _str + "&nbsp;"
+        }
+        return _str
+    }
+
+    function commomType(z){
+        if(z == undefined){
+            return 19
+        }
+        var _num = z.charCodeAt(0)
+        if(_num > -1 || _num < 256) { //判断是否为常用字符
+            if(z == "\""){
+                return 2
+            }else if(reStr.test(z)){
+                return 5
+            }else if(reNum.test(z)){
+                return 8
+            }
+        }else if( z == '\n'){
+            console.dir("换行符\\n")
+            return 4
+        }
+        return 19
+    }
+
+function nextchar(){
+	forward++
+	return myStr[forward]
+}
+
+function formatter(_str){
+    _init()
+    var _cade = document.getElementById("box")
+    wordxRead(_str)
+    _cade.innerHTML = okStr
+    window.myStr = JSON.stringify(_str)
+}
+
+    function gettoken(){
+        zbType = new Object()
+        zbType.syn = IsreserveWord(myStr.slice(start,forward+1),start,forward+1)
+        zbType.value = myStr.slice(start,forward+1)
+        tokenBuf.push(zbType)
+    }
+
+    function IsreserveWord(_work){
+        if(_work == ":"){
+            _value = true
+        } 
+        if(zifu.indexOf(_work) > -1){
+            return 1
+        }else if(jiefu.indexOf(_work) > -1){
+            _value = false
+            return 5
+        }else{
+            if(_value){
+                _value = false
+                return 3 //value
+            }
+            return 2
+        }
+    }
+
+   function nexttoken(){  //这里进行解词
+        state = 1
+        while(true){
+            switch (state){
+                case 1:
+                    c = nextchar()
+                    start = forward
+                    state = commomType(c)
+                    break
+                case 2:
+                    c = nextchar()
+                    if(reStr.test(c)){
+                        state = 2
+                    }else if(c == "\\"){
+                        state = 3
+                    }
+                    else if(c == "\""){
+                        state = 19
+                    }
+                    break
+                case 3:
+                    c = nextchar()
+                    if(c == "\""){
+                        state = 2
+                    }
+                    if(c == "\\"){
+                        state = 2
+                    }
+                    break
+                case 4:
+                    state = 19
+                    break
+                case 5:
+                    c = nextchar()
+                    if(reStr.test(c)){
+                        state = 5
+                    }else if(reNum.test(c)){
+                        state = 5
+                    }
+                    else{
+                        forward--
+                        state = 19
+                    }
+                    break
+                case 8:
+                    c = nextchar()
+                    if(reNum.test(c)){
+                        state = 8
+                    }else{
+                        forward--
+                        state = 19
+                    }
+                    break
+                case 19:
+                    return gettoken()
+            }
+        }
+        return gettoken()
+    }
+
+    ipc.on('caseData', (event, arg) => {
+        delete arg['cookie']  //无效不应该展示
+        delete arg['type']
+        if(arg.test === true){
+            delete arg['html']
+            delete arg['test']
+        }
+        arg = JSON.stringify(arg)
+        formatter(arg)
+    })
+    
+    function ifError(){
+        try {
+            console.dir(myStr)
+            let jsonOk = JSON.parse(myStr)
+            return JSON.parse(jsonOk)
+        } catch (error) {
+            alert("请检查是否符合json规则!")
+            return false
+        }
+    }
+
+    function updateData(){
+        geshi()
+        var data = ifError()
+        if(data){
+            console.dir(data)
+            ipc.send('changeCaseSave',data)
+            alert("修改成功!","京翼")
+            window.close()
+        }
+    }
+    
+</script>
+<style>
+
+    .input-font{
+        height: 400px;
+        position: absolute;
+        top:0;
+        width: 100%;
+    }
+
+    .box {
+        position: relative;
+    }
+
+    #box {
+        border: rgb(58, 132, 232) solid 1px;
+        height: 400px;
+        font-family: "Hiragino Sans GB", "Microsoft YaHei", "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        overflow:auto;
+    }
+
+    pre span {
+        color: burlywood;
+    }
+
+    .zhushi {
+        color: rgb(96, 139, 78);
+    }
+
+    .jsonValue ,._jsonValue ,.jsonValue_{
+        color: rgb(58, 132, 232);
+    }
+</style>

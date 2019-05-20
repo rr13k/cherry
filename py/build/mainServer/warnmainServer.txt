@@ -1,0 +1,31 @@
+missing module named resource - imported by posix, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named posix - imported by os, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named _posixsubprocess - imported by subprocess, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named org - imported by pickle, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named readline - imported by cmd, code, pdb, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+excluded module named _frozen_importlib - imported by importlib, importlib.abc, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named _frozen_importlib_external - imported by importlib._bootstrap, importlib, importlib.abc, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named _winreg - imported by platform, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named _scproxy - imported by urllib.request
+missing module named java - imported by platform, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named 'java.lang' - imported by platform, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py, xml.sax._exceptions
+missing module named vms_lib - imported by platform, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named termios - imported by tty, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py, getpass
+missing module named grp - imported by shutil, tarfile, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named 'org.python' - imported by copy, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py, xml.sax
+missing module named pwd - imported by posixpath, shutil, tarfile, http.server, webbrowser, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py, netrc, getpass
+missing module named _dummy_threading - imported by dummy_threading, C:\Users\zhouyuan11\Desktop\test-electron\py\mainServer.py
+missing module named 'Xlib.threaded' - imported by pynput._util.xorg
+missing module named 'Xlib.display' - imported by pynput._util.xorg, pynput.mouse._xorg
+runtime module named six.moves - imported by pynput._util
+missing module named StringIO - imported by six
+missing module named 'Xlib.keysymdef' - imported by pynput.keyboard._xorg
+missing module named 'Xlib.protocol' - imported by pynput.keyboard._xorg, pynput.mouse._xorg
+missing module named 'Xlib.XK' - imported by pynput.keyboard._xorg, pynput._util.xorg
+missing module named 'Xlib.X' - imported by pynput.keyboard._xorg, pynput.mouse._xorg
+missing module named 'Xlib.ext' - imported by pynput.keyboard._xorg, pynput.mouse._xorg
+missing module named Xlib - imported by pynput.keyboard._xorg
+missing module named CoreFoundation - imported by pynput._util.darwin
+missing module named objc - imported by pynput._util.darwin
+missing module named Quartz - imported by pynput.keyboard._darwin, pynput._util.darwin, pynput.mouse._darwin
+missing module named AppKit - imported by pynput.mouse._darwin

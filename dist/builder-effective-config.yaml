@@ -1,0 +1,14 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.leon.cherry
+copyright: renran
+productName: cherry
+dmg:
+  background: test.jpg
+extraFiles:
+  - strawberry.ico
+  - mainServer.exe
+win:
+  icon: strawberry.ico
+electronVersion: 3.0.5

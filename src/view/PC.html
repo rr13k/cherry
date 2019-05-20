@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>PC</title>
+  <link rel="stylesheet" href="../assets/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="../assets/icomoon/style.css">
+</head>
+<!-- <script src="../assets/bootstrap.min.js"  crossorigin="anonymous"></script> -->
+</head>
+
+<body>
+  <input type="checkbox" id="liveWin">
+  <div id="liveSet" style="visibility: hidden;">
+    <div>
+      <label for="liveWin" style="float: right; padding: 5px;">
+        <i class="icon-cross"></i>
+      </label>
+    </div>
+    <h3>运行配置</h3>
+    <input style="width: 70%;" id="urlVal" placeholder="http://" class="myInput" value="" />
+    <ul class="urlList">
+      <li onclick="setUrlVal(this)">
+        <span>http://www.baidu.com</span>
+      </li>
+      <li onclick="setUrlVal(this)">
+        <span>http://www.jd.com</span>
+      </li>
+      <li onclick="setUrlVal(this)">
+        <span>http://www.ruidaedu.com/</span>
+      </li>
+      <li onclick="setUrlVal(this)">
+        <span>http://www.chinanews.com/</span>
+      </li>
+      <li onclick="setUrlVal(this)">
+          <span>http://www.jiniannet.com/page/allcolor</span>
+        </li>
+    </ul>
+    <button style="background-color: #d4d4d4;" onclick="startLive()">开始录制</button>
+  </div>
+
+  <div class="container-fluid" style="background-color: #333030;">
+    <div class="row">
+      <div class="col-xs-12  tools">
+        <ul class="toolsUl ">
+          <li onclick="backHome()" title="返回">
+            <span class="icon-home" style="color: rgb(22, 109, 223) !important;font-size: 18px;line-height: 30px;font-weight: 600"></span>
+          </li>
+          <li title="录制">
+            <label for="liveWin">
+              <span class="icon-dkw_" style="color: rgb(231, 85, 85) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+            </label>
+          </li>
+          <li onclick="" title="图表">
+            <span class="icon-stats-bars" style="color: rgb(59, 230, 130) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+          </li>
+          <li onclick="F5()" title="刷新">
+            <span class="icon-spinner11" style="color: rgb(56, 56, 56) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+          </li>
+          <li onclick="allRun(true)" title="批量运行">
+            <span class="icon-play3" style="color: rgb(10, 152, 29) !important;font-size: 22px;line-height: 30px;font-weight: 600"></span>
+          </li>
+          <li onclick="" title="设置">
+            <span class="icon-cog" style="color: rgb(59, 59, 59) !important;font-size: 20px;line-height: 30px;font-weight: 600"></span>
+          </li>
+          <li >
+            <input type="text"  id="runNum"    placeholder="运行次数!" style="display: inline-block;width:60px"  onchange="changeRunNum(this)"  >
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row bodyBox">
+      <div class="col-md-2 hidden-xs treeBox">
+        //tree
+      </div>
+      <div class="col-xs-12  col-md-10  clearMargin " style="height: 100%;">
+        <div class="col-xs-12 clearMargin dataBox">
+        </div>
+        <div class="col-xs-12  cmdShow">执行显示区域</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+<script>
+  var ipc = require('electron').ipcRenderer;
+  var lowdb = require('./lowdb.js')
+  var db = new lowdb.lowdb
+  var casaTableId = null
+  var cmdList = []
+  var liveUrl = ''
+  var nowRunId = null
+  var liveTitle = null
+  var winCaseList
+  var runAllIndex = null
+  const { session } = require('electron').remote
+  session.defaultSession.webRequest.onBeforeSendHeaders([],null) //清除绑定
+
+  ipc.on('cmdEnd',()=>{ //case 运行结束
+    if(runAllIndex != null){
+      runAllIndex++
+      allRun(false)
+      return false
+    }
+    if(typeof runNumMax != 'undefined' && runNum < runNumMax -1){ //让它只在，单次运行中起效
+      runNum++
+      // document.getElementById('runNum').value = runNum
+      butClick(nowRunId,false)
+    }else{
+      runNum = 0
+    }
+  })
+
+  function changeRunNum(e){
+    window.runNumMax = e.value
+    window.runNum = 0
+  }
+
+  initPy()
+  function initPy() {
+    let url = 'http://127.0.0.1:8871/'; //A local page
+    var xhr = new XMLHttpRequest();
+    try {
+      xhr.open('GET', url, false); //第三个参数为是否同步
+      xhr.send(null);
+      console.dir('PY 已运行!')
+      return false
+    } catch (error) {
+      console.dir('PY 开始运行!')
+      var exec = require('child_process').exec;
+      var cmdStr = `${process.cwd()}\\mainServer.exe`;
+      exec(cmdStr, function (err, stdout, stderr) {
+        if (err) {
+          console.log('py startError:' + err);
+        }
+      });
+    }
+  }
+
+  function allRun(run){
+    if(casaTableId == null){
+      alert('请先选择用例集!')
+      return false
+    }else if(winCaseList.length < 1){
+      alert('请先录制用例!')
+    }
+    if(run === true){
+      runAllIndex = 0
+    }
+    console.dir(runAllIndex)
+    if(runAllIndex < winCaseList.length){
+      butClick(winCaseList[runAllIndex].id,true)
+    }
+  }
+
+  var randomNum = {   //用于生成不会重复的数
+    value: 0,
+    get val() {
+      this.value++
+      return this.value
+    }
+  }
+
+  ipc.on('getCsaeData', function (event, _id) { //发送case数据
+    let data = db.getCase(_id)
+    ipc.send('sendCaseData', data)
+  })
+
+  ipc.on('liveTitleto',(event,title)=>{
+    liveTitle = title
+  })
+
+  ipc.on('changeCaseSaveok', function (event, arg) {
+    db.changeCase(arg)
+    CaseTable(casaTableId)
+  })
+
+  ipc.on('CmdList', (event, arg) => {
+    cmdList.push(arg)
+  })
+  ipc.on('BrowserClosed', (event, arg) => { //保存用例
+    if (arg == 2) { return false } //运行时不保存
+    db.saveCase(cmdList, liveUrl, casaTableId,liveTitle)
+    cmdList = []
+    liveTitle = null
+    CaseTable(casaTableId)
+  })
+
+  function F5() {
+    treeinit()
+    if (casaTableId != null){
+      CaseTable(casaTableId)
+    }
+  }
+
+  treeinit()
+  function treeinit() {
+    let data = db.initProjectData()
+    renderTree(data)
+  }
+
+  let sdd = db.test()
+
+  let treeBox = document.getElementsByClassName('treeBox')[0]
+  treeBox.onmousedown = function (e) {
+    var { ipcRenderer } = require('electron')
+    var { remote } = require('electron')
+    var { Menu, MenuItem } = remote
+    var menu = new Menu()
+    menu.append(new MenuItem({
+      label: '新建项目', click() {
+        db.addInitProject()
+        treeinit()
+      }
+    }))
+    var e = event || window.event;
+    let nType = e.button;
+    if (2 === nType) {//点击鼠标右键
+      menu.popup({ window: remote.getCurrentWindow() })
+    }
+    e.stopPropagation();
+  }
+
+  function butClick(e,allrun) {
+    let data
+    nowRunId = e
+    if(allrun == true){  //是否为批量执行
+      data = db.getCase(e)
+    }else{
+      runAllIndex = null
+      let lineData = e.parentNode.parentNode.parentNode
+      let id = lineData.children[0].innerText
+      data = db.getCase(id)
+    }
+    if(typeof runNum != 'undefined' ){ 
+      data.runNum = runNum
+    }
+    data.type = 2
+    data.cookie = db.getCookie(data.project)
+    ipc.send('openBrowser', data)
+  }
+
+  function startLive() {
+    cmdList = []
+    let val = document.getElementById('urlVal').value
+    console.dir(casaTableId)
+    if (val == '' || casaTableId == null) {
+      alert('请选择用例集并填写测试网址!')
+      return false
+    }
+    liveUrl = val
+    obj = new Object
+    obj.cookie = db.getCookie(casaTableId)
+    obj.type = 1
+    obj.url = val
+    ipc.send('openBrowser', obj)
+    document.getElementById('liveWin').checked = false
+  }
+
+  function setUrlVal(e) {
+    urlVal = document.getElementById('urlVal')
+    urlVal.value = e.innerText
+  }
+
+  function renderChildTree(dom, list, exception = false) {   //exception 是否例外,用于是否展开
+    if (dom.parentNode.parentNode.className.indexOf('main-tree') > -1) {
+      isTrue = dom.previousSibling.previousSibling.checked
+      _name = dom.previousSibling.previousSibling.name
+      let data = db.initProjectData()
+      let headsDom = renderTree(data, false, true)
+      treeBox.innerHTML = headsDom
+      let nameDom = document.getElementsByName(_name)[0]
+      nameDomfathcr = nameDom.parentNode
+      let _ul = document.createElement('ul')
+      _ul.innerHTML = TreeRecursion(list)
+      for (var o = _ul.children.length - 1; o >= 0; o--) {
+        nameDomfathcr.appendChild(_ul.children[0])  //修改为O则最新的在最前方
+      }
+      if (!isTrue || exception) {
+        document.getElementsByName(_name)[0].checked = true
+      }
+    } else {
+      isTrue = dom.previousSibling.previousSibling.checked
+      _name = dom.previousSibling.previousSibling.name
+      let _logUl = dom.parentNode.parentNode
+      let _str = dom.dataset.tree.replace(/\~/g, '"')
+      _str = JSON.parse(_str)
+      let _ul = document.createElement('ul')
+      _Str = TreeRecursion([_str], false, true) + TreeRecursion(list, false) + '</li>'
+      _logUl.innerHTML = _Str
+      if (!isTrue || exception) {
+        document.getElementsByName(_name)[0].checked = true
+      }
+    }
+  }
+
+
+  function CaseTable(id) {
+    let data = db.getCaseData(id)
+    winCaseList = data
+    var dataBox = document.getElementsByClassName('dataBox')[0]
+    dataBox.innerHTML = `<table border="1" id="casesTable" cellpadding="10" width="100%" class="biaoge">
+      <tr><th width="8%">id</th><th>用例名称</th><th>成功率</th><th>操作</th></tr></table>`
+    let casesTable = document.getElementById('casesTable')
+    var _div = document.createElement('tbody')
+    var _str = ''
+    for (var i = 0; i < data.length; i++) {
+      _str = `<tr> 
+  <td>${data[i].id}</td>
+  <td>${data[i].label}</td>
+  <td>-</td>
+  <td>
+    <ul class="btnBox">
+      <li class="icoBtn" onclick="butClick(this)">
+      <a title="运行" style="text-decoration: none;">
+          <span class="icon-run" style="color: rgb(78, 255, 167) !important;font-size: 20px;line-height: 30px;"></span>
+        </a>
+      </li>
+      <li class="icoBtn" onclick="editor(this)">
+          <a title="编辑" style="text-decoration: none;" >
+              <span class="icon-file-text" style="color: rgb(215, 247, 235) !important;font-size: 15px;line-height: 30px;"></span>
+        </a>
+      </li>
+      <li class="icoBtn" onclick="closeCase(this)">
+          <a title="删除" style="text-decoration: none;">
+              <span class="icon-cross" style="color: rgb(253, 90, 90) !important;font-size: 15px;line-height: 30px;"></span>
+        </a>
+      </li>
+    </ul>
+  </td>
+</tr>
+`
+  _div.innerHTML = _str
+  casesTable.children[0].appendChild(_div.children[0])
+    }
+  }
+
+  function backTree(obj) {
+    switch (obj.type) {
+      case "cases":
+        casaTableId = obj.id
+        CaseTable(obj.id)
+        break
+      case "requestHd":  //点击了cookie
+        var dataBox = document.getElementsByClassName('dataBox')[0]
+        let showPage = `
+        <div id="ckbox">
+            <textarea rows="3" cols="20"  data-id="${obj.id}"  class="cookieData"  placeholder="请粘贴请求头附带的cookie数据!"  onchange="saveCookie(this)">${obj.list}</textarea>
+        </div>
+        `
+        dataBox.innerHTML = showPage
+        break
+      default:
+        return false
+    }
+  }
+  function saveCookie(e) {
+    let id = e.dataset.id
+    let value = e.value
+    db.changeCookie(id, value)
+  }
+
+  function closeCase(e) {
+    let lineData = e.parentNode.parentNode.parentNode
+    let id = lineData.children[0].innerText
+    db.deleteCase(id)
+    CaseTable(casaTableId)
+  }
+
+  function treeClick(dom) {
+    var _e = event || window.event;
+    let _str = dom.dataset.tree.replace(/\~/g, '"')
+    _str = JSON.parse(_str)
+    let dataChild = db.getProjectChild(_str.id)
+    if (0 == _e.button) {  //左键
+      if (_str.type == "cases" || _str.type == "projects") {
+        renderChildTree(dom, dataChild)  //重新渲染子集
+      }
+      backTree(_str)
+    }
+    if (2 === _e.button) {//点击鼠标右键
+      _handleNodeClick(dom, _str)
+    }
+    _e.stopPropagation();
+  }
+
+  function editor(e) {
+    let lineData = e.parentNode.parentNode.parentNode
+    let id = lineData.children[0].innerText
+    let data = db.getCase(id)
+    data.html = "changeCase.html"
+    ipc.send('changepage', data)
+  }
+
+  function ReName(_x, _y, _width, _height, _id, data, dom) {  //x ,y ,width,height,changeId,后两个参数为刷新tree所使用
+    var body = document.getElementsByTagName("body")[0]
+    if (typeof body.children.renameInmpt != 'undefined') {
+      alert('请先修改当前名称!')
+      return false
+    }
+    var element = document.createElement("input");
+    element.style.position = "fixed"
+    element.style.left = _x + "px"
+    element.style.top = _y + "px"
+    element.onkeydown = function () {
+      var evt = window.event || e;
+      if (evt.keyCode == 13) {
+        let value = element.value
+        db.changeProjectName(_id, value)
+        body.removeChild(element);
+        let id
+        if (data.father != false) {
+          id = data.father
+        } else {
+          treeinit()
+          return false
+        }
+        let dataChild = db.getProjectChild(id)
+        dom = document.getElementsByName(id)[0]
+        dom = dom.nextElementSibling
+        renderChildTree(dom, dataChild, true)
+
+      }
+    }
+    element.style.zIndex = 2
+    element.style.display = 'block'
+    element.style.height = _height + "px"
+    element.style.width = _width + "px"
+    element.id = "renameInmpt"
+    element.onclick = function () {
+      event.stopPropagation();
+    }
+    body.append(element)
+    // element.class
+  }
+
+  function _handleNodeClick(dom, data, node) {  //右键点击树形图,4个参数分别为event、data、node、dom
+    var { remote } = require('electron')
+    var { Menu, MenuItem } = remote
+    var menu = new Menu()
+    switch (data.type) {
+      case "projects":
+        if (true) {
+          menu.append(new MenuItem({
+            label: '新建子目录', click() {
+              var addDate = db.addInitProject(data.id)
+              let dataChild = db.getProjectChild(data.id)
+              renderChildTree(dom, dataChild, true)
+            }
+          }))
+        }
+        menu.append(new MenuItem({
+          label: '新建cases集', click() {
+            db.addInitCase(data.id)
+            let dataChild = db.getProjectChild(data.id)
+            renderChildTree(dom, dataChild, true)
+          }
+        }))
+
+        menu.append(new MenuItem({
+          label: '重命名', click() {   //x ,y ,width,height,changeId
+            ReName(dom.offsetLeft + 20, dom.offsetTop + 40, dom.offsetWidth, 30, data.id, data, dom)
+          }
+        }))
+
+        menu.append(new MenuItem({
+          label: 'Delete', click() {
+            db.deleteProjects(data.id)
+            let id
+            if (data.father != false) {
+              id = data.father
+            } else {
+              treeinit()
+              return false
+            }
+            let dataChild = db.getProjectChild(id)
+            dom = document.getElementsByName(id)[0]
+            dom = dom.nextElementSibling
+            renderChildTree(dom, dataChild, true)
+          }
+        }))
+        break;
+
+      case "cases":
+        menu.append(new MenuItem({
+          label: '添加cookie', click() {
+            if(db.findCookie(data.id)){
+              alert('已有cookie无法再次添加!','京翼')
+              return false
+            }
+            db.addInitCookie(data.id)
+            let dataChild = db.getProjectChild(data.id)
+            renderChildTree(dom, dataChild, true)
+          }
+        }))
+
+        menu.append(new MenuItem({
+          label: '重命名', click() {
+            ReName(dom.offsetLeft + 20, dom.offsetTop + 40, dom.offsetWidth, 30, data.id, data, dom)
+          }
+        }))
+        menu.append(new MenuItem({
+          label: 'Delete', click() {
+            db.deleteProjects(data.id)
+            id = data.father
+            dom = document.getElementsByName(id)[0]
+            dom = dom.nextElementSibling
+            let dataChild = db.getProjectChild(id)
+            renderChildTree(dom, dataChild, true)
+          }
+        }))
+        break;
+      case "requestHd":
+        menu.append(new MenuItem({
+          label: 'Delete', click() {
+            db.deleteProjects(data.id)
+            id = data.father
+            dom = document.getElementsByName(id)[0]
+            dom = dom.nextElementSibling
+            let dataChild = db.getProjectChild(id)
+            renderChildTree(dom, dataChild, true)
+          }
+        }))
+      default:
+        break;
+    }
+
+    menu.popup({ window: remote.getCurrentWindow() })
+  }
+
+  function backHome() {
+    ipc.send('backHome')
+  }
+
+
+  function TreeRecursion(list, frist = '', treeShander = false) {
+    var dom = ""
+    let type = ''
+    if (frist) {
+      frist = 'main-tree'
+    }
+    for (var i = 0; i < list.length; i++) {
+      let cont = JSON.stringify(list[i])
+      cont = cont.replace(/\"/g, '~')
+      if (list[i].type == 'projects') {
+        if (!treeShander) {
+          dom = dom + `<ul  class="pure-tree ${frist}">
+              <li>
+                 <input type="checkbox" name="${list[i].id}" id="trigger-${randomNum.val}">
+                 <label  data-tree="${cont}"  onmousedown="treeClick(this)" for="trigger-${randomNum.value}">${list[i].label}</label>
+               </li></ul> `
+        } else {
+          dom = dom + `<li>
+                 <input type="checkbox" name="${list[i].id}" id="trigger-${randomNum.val}">
+                 <label  data-tree="${cont}"  onmousedown="treeClick(this)" for="trigger-${randomNum.value}">${list[i].label}</label>
+               `
+        }
+      } else if (list[i].type == 'cases') {
+        type = 'icon-case'
+        if (!treeShander) {
+          dom = dom + `<ul  class="pure-tree">
+              <li>
+                 <input type="checkbox"  name="${list[i].id}" id="trigger-${randomNum.val}">
+                 <label class="${type}" data-tree="${cont}"  onmousedown="treeClick(this)" for="trigger-${randomNum.value}">${list[i].label}</label>
+               </li></ul>
+               `
+        } else {
+          dom = dom + `
+              <li>
+                 <input type="checkbox"  name="${list[i].id}" id="trigger-${randomNum.val}">
+                 <label class="${type}" data-tree="${cont}"  onmousedown="treeClick(this)" for="trigger-${randomNum.value}">${list[i].label}</label>
+               `
+        }
+
+      } else if (list[i].type == 'requestHd') {
+        type = 'icon-cookie'
+        dom = dom + ` <ul class="pure-tree">
+                  <li class="pure-tree_link">
+                <a  class="${type}" title="${list[i].label}" onmousedown="treeClick(this)" data-tree="${cont}"  href="javascript:;" >${list[i].label}</a>
+              </li></ul>`
+      }
+
+    }
+    return dom
+  }
+
+  function renderTree(treeList, insert = true, treeShander) {
+    var myStr = ''
+    var first = true
+    var treeBox = document.getElementsByClassName('treeBox')[0]
+    if (!insert) {
+      return TreeRecursion(treeList, true)
+    }
+    treeBox.innerHTML = TreeRecursion(treeList, true, treeShander)
+  }
+
+</script>
+
+
+<style>
+  * {
+    font-family: "Hiragino Sans GB", "Microsoft YaHei", "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  .s123:hover+td {
+    background-color: red;
+    visibility: visible;
+    border: 1px solid red;
+  }
+
+  .s123:hover+.editor {
+    border: 1px solid red;
+
+  }
+
+  #liveWin:checked+#liveSet {
+    visibility: unset !important;
+
+  }
+
+  .icoBtn>a>span {
+    vertical-align: middle;
+  }
+
+  #liveSet {
+    text-align: center;
+    position: fixed;
+    margin: auto auto;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    width: 30%;
+    min-width: 350px;
+    min-height: 400px;
+    height: 50%;
+    background-color: #969696;
+    opacity: 1;
+  }
+
+  .cmdShow {
+    color: #B0B9C5;
+    min-height: 30px;
+    height: 10%;
+  }
+
+  .toolsUl>li:hover {
+    background-color: #3e3f4077;
+  }
+
+  .toolsUl>li {
+    user-select: none;
+    background-color: #5f606177;
+    display: inline-block;
+    /* padding: 5px; */
+    margin: 5px 0;
+    width: 30px;
+    height: 30px;
+    /* margin-left: -10px; */
+    text-align: center;
+    vertical-align: text-top;
+    border-radius: 10%;
+  }
+
+  .urlList {
+    background-color: #cac9c9;
+    margin: 0 10px;
+    height: 60%;
+    margin: 10px 0;
+  }
+
+  .bodyBox {
+    position: absolute;
+    top: 40px;
+    bottom: 0px;
+    width: 100%;
+  }
+
+  .btnBox {
+    font-size: 0;
+  }
+
+  .clearMargin {
+    padding: 0;
+    margin: 0;
+  }
+
+  .clearfix:before,
+  .clearfix:after {
+    content: "";
+    display: block;
+    clear: both;
+  }
+
+  .clearfix {
+    zoom: 1;
+  }
+
+  ul,
+  li {
+    list-style: none;
+  }
+
+  ul {
+    padding: 0;
+    margin: 0;
+  }
+
+  .myInput {
+    border-radius: 3px;
+    display: inline-block;
+    padding: 7px 0px;
+    border: 1px solid #ccc;
+    -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+    -webkit-transition: border-color ease-in-out .15s, -webkit-box-shadow ease-in-out .15s;
+    -o-transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+    transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s
+  }
+
+  .myInput:focus {
+    border-color: #66afe9;
+    outline: 0;
+    -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075), 0 0 8px rgba(102, 175, 233, .6);
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075), 0 0 8px rgba(102, 175, 233, .6)
+  }
+
+  .icoBtn {
+    display: inline-block;
+    padding: 0 5px;
+    font-size: 0;
+  }
+
+  .treeBox {
+    height: 100%;
+    background-color: #5a5a5a;
+    border-right: rgba(99, 99, 99, 0.521) solid 1px;
+  }
+
+  .dataBox {
+    height: 90%;
+    border-bottom: rgba(233, 233, 233, 0.521) solid 1px;
+    background-color: rgba(255, 255, 255, 0.2);
+    overflow-y:auto;
+  }
+
+  .icoBtn:hover {
+    animation: bounce 1s;
+  }
+
+
+  @keyframes bounce {
+    from,
+    20%,
+    53%,
+    80%,
+    to {
+      animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+      transform: translate3d(0, 0, 0);
+    }
+
+    40%,
+    43% {
+      animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+      transform: translate3d(0, -10px, 0);
+    }
+
+    70% {
+      animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+      transform: translate3d(0, -3px, 0);
+    }
+
+    90% {
+      transform: translate3d(0, -1px, 0);
+    }
+  }
+
+  th {
+    text-align: center;
+    color: #b3bfc3;
+    font-size: 14px;
+    font-weight: 100;
+    border: none;
+    padding: 5px 0;
+  }
+
+  .tools {
+    min-width: 200px;
+    /* height: 5vh; */
+    background-color: rgba(255, 255, 255, 0.2);
+    /* border-bottom: rgba(233, 233, 233, 0.521) solid 1px; */
+  }
+
+  body {
+    /* background-image: linear-gradient(-20deg, #d9f5e8 0%, #CCE8CF 100%); */
+    background-color: #6d6a6a;
+    overflow-y: hidden;
+    height: 100vh;
+  }
+
+  .urlList>li {
+    border-bottom: #9c9c9c solid 1px;
+  }
+
+  .urlList>li:hover {
+    background-color: #7c9dff;
+  }
+
+  input {
+    display: none;
+  }
+
+  td {
+    color: #c7c7c7;
+    border: none;
+    border-bottom: rgba(233, 233, 233, 0.521) solid 1px;
+    padding: 5px 0;
+  }
+
+  table {
+    background-color: #6d6c6c;
+    text-align: center;
+    border: rgba(88, 88, 88, 0.521) solid 1px;
+    user-select: none;
+  }
+
+  .textBtn {
+    border: 0;
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0)
+  }
+
+  .textBtn:hover {
+    background-color: rgb(200, 226, 218);
+    border-radius: 20%;
+  }
+
+  [class*="fa-"]:before {
+    font-family: 'FontAwesome', sans-serif;
+  }
+
+  .pure-tree {
+    text-align: left;
+    display: block;
+  }
+
+  .pure-tree.main-tree {
+    width: 100%;
+    display: inline-block;
+  }
+
+  .pure-tree:not(.main-tree) {
+    padding-left: 1.2em;
+  }
+
+  .pure-tree:not(.main-tree) li {
+    overflow: hidden;
+    height: 0;
+    display: block;
+  }
+
+  .pure-tree label {
+    display: block;
+    cursor: pointer;
+    color: rgb(209, 209, 209);
+    border-bottom: 1px dashed #B0B9C5;
+    padding: 0.5em 0.5em 1.125em 0;
+  }
+
+  .pure-tree label:before {
+    width: 1em;
+    height: 1em;
+    line-height: 1em;
+    display: inline-block;
+    font-family: 'icomoon', sans-serif;
+    content: "\e92f";
+    padding-right: 1.4em;
+  }
+
+  .pure-tree label:hover {
+    color: white;
+    border-bottom-color: #434a58;
+  }
+
+  .pure-tree .pure-tree_link a {
+    padding: 0.80em 1.125em 0.750em 0;
+    display: block;
+    border-radius: .2em;
+    color: rgb(209, 209, 209);
+    text-decoration: none;
+  }
+
+  .pure-tree .pure-tree_link a:hover {
+    color: white;
+  }
+
+  .pure-tree.nested {
+    padding-left: 1.7em;
+  }
+
+  .pure-tree [type="checkbox"] {
+    display: none;
+  }
+
+  .pure-tree [type="checkbox"]:checkeded+label {
+    color: white;
+    border-bottom-color: #434a58;
+  }
+
+  .pure-tree [type="checkbox"]:checked~ul>li {
+    height: auto;
+  }
+
+
+  @font-face {
+    font-family: 'icomoon';
+    src: url('../assets/icomoon/fonts/icomoon.eot?gdke1x');
+    src: url('../assets/icomoon/fonts/icomoon.eot?gdke1x#iefix') format('embedded-opentype'),
+    url('../assets/icomoon/fonts/icomoon.ttf?gdke1x') format('truetype'),
+    url('../assets/icomoon/fonts/icomoon.woff?gdke1x') format('woff'),
+    url('../assets/icomoon/fonts/icomoon.svg?gdke1x#icomoon') format('svg');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  [class^="icon-"],
+  [class*=" icon-"] {
+    /* use !important to prevent issues with browser extensions that change fonts */
+    font-family: 'icomoon' !important;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+
+    /* Better Font Rendering =========== */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .icon-case:before {
+    content: "\e900" !important;
+  }
+
+  .icon-cookie:before {
+    content: "\e901" !important;
+    padding-right: 0.5em;
+  }
+
+  .icon-folder:before {
+    content: "\e92f" !important;
+    padding-right: 0.5em;
+  }
+
+  /* cookie style========== */
+
+  .rightwire {
+    border-right: 1px solid #a29a9a;
+    width: 100%;
+    height: 100%;
+    margin: auto auto;
+    background: rgb(163, 188, 185);
+  }
+
+  ._Btn {
+    width: 100%;
+    background-color: #6f6f6f;
+    outline: none;
+
+  }
+
+  ._value {
+    height: 100%;
+    width: 100%;
+    text-align: center;
+    border: none;
+    outline-color: #ffffff;
+    display: inline-block;
+    background-color: #bcbdbd;
+  }
+
+  .claerDistance {
+    margin: 0;
+    padding: 0;
+  }
+
+
+  .cookieHead {
+    text-align: center;
+    margin: 0;
+  }
+
+
+  .cookieData {
+    height: 100%;
+    width: 100%;
+    background-color: #989898;
+  }
+
+  #ckbox {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    overflow-y: hidden;
+  }
+</style>
